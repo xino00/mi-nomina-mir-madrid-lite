@@ -2,3 +2,4 @@ dist/
 output/
 .playwright-cli/
 node_modules/
+.playwright-mcp/

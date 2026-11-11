@@ -3,7 +3,7 @@ import {defaultState,loadState,saveState,clearState} from './state.js';
 import {SOURCES,MODES} from './rules.js';
 const $=id=>document.getElementById(id);
 const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const money=n=>new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR'}).format(n);
+const money=n=>new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR',useGrouping:'always'}).format(n);
 const number=n=>new Intl.NumberFormat('es-ES',{maximumFractionDigits:3}).format(n);
 const monthLabel=m=>/^\d{4}-(0[1-9]|1[0-2])$/.test(m)?new Intl.DateTimeFormat('es-ES',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(m+'-15T12:00:00Z')):'Mes pendiente';
 const parsed=loadState();let state=parsed.state;
@@ -99,14 +99,26 @@ $('reset-month').addEventListener('click',()=>{
   fill();$('advanced').open=true;refresh();
 });
 function renderErrors(errors){$('errors').className=errors.length?'errors':'';$('errors').innerHTML=errors.map(e=>`<p>${esc(e)}</p>`).join('');}
-function line(label,value,origin='',total=false){return `<div class="line ${total?'total':''}"><dt>${esc(label)}${origin?`<small>${esc(origin)}</small>`:''}</dt><dd>${money(value)}</dd></div>`;}
+// El origen llega como «Estado · detalle»: el estado se marca aparte para distinguir lo manual y lo provisional.
+function origen(text){
+  if(!text)return '';
+  const cut=text.indexOf(' · '),mark=cut>=0?text.slice(0,cut):text==='Manual'?text:'',rest=cut>=0?text.slice(cut+3):mark?'':text;
+  const kind=/^Manual/.test(mark)?'manual':/^(Provisional|Estim)/.test(mark)?'provisional':'';
+  return `<small>${mark?`<span class="origen ${kind}">${esc(mark)}</span>${rest?': ':''}`:''}${esc(rest)}</small>`;
+}
+// Fila del recibo: el importe va en la columna de devengos ('dev') o en la de deducciones ('ded'), siempre en positivo.
+function line(label,value,origin='',column='dev'){
+  const amount=`<td>${money(value)}</td>`,blank='<td></td>';
+  return `<tr><th scope="row">${esc(label)}${origen(origin)}</th>${column==='dev'?amount+blank:blank+amount}</tr>`;
+}
+function emptyReceipt(text){return `<tr><td class="vacio" colspan="3">${esc(text)}</td></tr>`;}
 function status(id,manual){$(id).textContent=manual?'Manual':'Automático';$(id).className='tag'+(manual?' manual':'');}
 function refresh(persist=true){
   let result;
   try{result=calculate(state);}catch{result={errors:['Revisa los datos introducidos. No se ha calculado un resultado con datos inválidos.']};}
   if(persist&&validate(state).length===0){const saved=saveState(state);$('storage-status').textContent=saved?'Guardado solo en este navegador. Sin historial anual.':'No se pudo guardar. El cálculo funciona, pero perderás los datos al cerrar.';}
   if(storageError)$('storage-status').textContent='No se pudo recuperar la configuración anterior. Revisa los datos antes de guardar; no se ha enviado nada.';
-  $('profile-summary').textContent=state.configured?`R${gradeOn(state.month+'-01',state.profile)||'—'} · editar perfil`:'Empieza aquí';
+  $('profile-summary').textContent=state.configured?`R${gradeOn(state.month+'-01',state.profile)||'—'}, situación fiscal ${state.profile.situation}`:'Empieza aquí';
   $('accumulated-fields').hidden=!state.profile.accumulated.enabled;
   $('vacation-average').disabled=!state.vacation.enabled;$('vacation-fraction').disabled=!state.vacation.enabled;
   for(const key of Object.keys(overrideLabels))status('override-'+key+'-status',state.overrides[key]!==null);
@@ -115,21 +127,21 @@ function refresh(persist=true){
   $('worked-month').textContent=date?monthLabel(date.slice(0,7)):'—';
   for(const mode of ['labour','holiday']){
     const r=date?rateFor(date,gradeOn(date,state.profile),mode,state.overrides[mode]):null;
-    $('rate-'+mode).textContent=r?.rate!==null&&r?.rate!==undefined?`${number(r.rate)} €/h · R${gradeOn(date,state.profile)} · ${r.status}`:'Tarifa pendiente';
+    $('rate-'+mode).textContent=r?.rate!==null&&r?.rate!==undefined?`${number(r.rate)} €/h, R${gradeOn(date,state.profile)}, ${r.status}`:'Tarifa pendiente';
   }
   state.rows.forEach((row,i)=>{
     const r=rateFor(row.date,gradeOn(row.date,state.profile),row.mode,row.rate);
     status('row-status-'+i,row.rate!==null);
-    $('row-result-'+i).textContent=r.rate===null?r.reason:`${number(r.rate)} €/h × ${number(row.hours)} h · R${gradeOn(row.date,state.profile)} · ${r.status}`;
+    $('row-result-'+i).textContent=r.rate===null?r.reason:`${number(r.rate)} €/h × ${number(row.hours)} h, R${gradeOn(row.date,state.profile)}, ${r.status}`;
   });
   renderErrors(result.errors??[]);
-  $('net').textContent=result.errors?.length?'—':money(result.net);
+  $('net').textContent=$('net-bar').textContent=result.errors?.length?'—':money(result.net);
   $('result-month').textContent=monthLabel(state.month);
-  document.querySelector('.result-note').textContent=state.month>='2027-01'?'2027: sueldo, bases de cotización e IRPF provisionales. Revisa los supuestos.':'Estimación con supuestos. Revisa su origen debajo.';
+  $('result-note').textContent=state.month>='2027-01'?'2027: sueldo, bases de cotización e IRPF provisionales. Revisa los supuestos.':'Estimación con supuestos. Revisa su origen debajo.';
   const gStart=gradeOn(state.month+'-01',state.profile),gEnd=gradeOn(state.month+'-'+monthDays(state.month),state.profile);
   $('result-grade').textContent=gStart===gEnd?`R${gStart||'—'}`:`R${gStart||'—'} → R${gEnd}`;
   const o=state.overrides;
-  if(result.gross===undefined||result.errors?.length){$('breakdown').innerHTML='<p class="hint">Completa los datos indicados para ver el desglose.</p>';$('calculation-detail').innerHTML='<p>El resultado aparecerá cuando los datos necesarios estén completos.</p>';}
+  if(result.gross===undefined||result.errors?.length){$('breakdown').innerHTML=emptyReceipt('El desglose aparecerá aquí cuando los datos estén completos.');$('calculation-detail').innerHTML='<p>El resultado aparecerá cuando los datos necesarios estén completos.</p>';}
   else{
     $('breakdown').innerHTML=
       line('Sueldo',result.fixed.salary,o.salary!==null?'Manual':state.month>='2027-01'?'Provisional · referencia salarial 2026':'Publicado · tabla SERMAS 2026')+
@@ -138,11 +150,10 @@ function refresh(persist=true){
       (result.extra||o.extra!==null?line('Paga extra',result.extra,o.extra!==null?'Manual':'Provisional · ponderada por curso'): '')+
       (state.vacation.enabled?line('Compensación vacacional',result.vacation,'Manual · media y fracción introducidas'): '')+
       (state.otherGross?line('Otros devengos',state.otherGross,'Manual · sujetos a IRPF y cotización'): '')+
-      line('Bruto',result.gross,'',true)+
-      line(`IRPF · ${number(result.rate)} %`,-result.withheld,o.tax!==null?'Manual':'Estimación AEAT · comparación oficial pendiente')+
-      line('Cotizaciones',-result.ss,o.ss!==null?'Manual · cuota total':'Estimadas · bases por mes de devengo')+
-      (state.otherDeductions?line('Otros descuentos',-state.otherDeductions,'Manual'): '')+
-      line('Neto estimado',result.net,'',true);
+      line(`IRPF ${number(result.rate)} %`,result.withheld,o.tax!==null?'Manual':'Estimación AEAT · comparación oficial pendiente','ded')+
+      line('Cotizaciones',result.ss,o.ss!==null?'Manual · cuota total':'Estimadas · bases por mes de devengo','ded')+
+      (state.otherDeductions?line('Otros descuentos',state.otherDeductions,'Manual','ded'): '')+
+      `<tr class="total"><th scope="row">Totales</th><td>${money(result.gross)}</td><td>${money(result.gross-result.net)}</td></tr>`;
     const c=result.contributions;
     $('calculation-detail').innerHTML=`<h3>Previsión del año ${state.month.slice(0,4)}</h3><p>Bruto: <strong>${money(result.annual.gross)}</strong>${state.profile.forecast.grossOverride!==null?' · manual':''}<br>Cotizaciones: ${money(result.annual.ss)}${state.profile.forecast.ssOverride!==null?' · manual':''}<br>Base para retención: ${money(result.tax.base)}<br>Reducción por rendimientos: ${money(result.tax.reduction)}<br>Cuota calculada antes del tipo: ${money(result.tax.quota)}<br>Tipo estimado: ${number(result.tax.rate)} % (mínimo 15 %). El tipo se trunca a dos decimales.</p><p>Previsión orientativa: horas repartidas entre meses de actividad; sin historial. Los ajustes mensuales no se extrapolan al año.</p><h3>Cotizaciones del trabajador</h3>${o.ss!==null?'<p>Cuota total manual: el desglose automático siguiente solo sirve como referencia; no descompone tu ajuste.</p>':''}<table class="mini-table"><tbody>${[['Contingencias comunes',c.common],['Desempleo',c.unemployment],['Formación profesional',c.training],['MEI',c.mei],['Solidaridad',c.solidarity]].map(([k,v])=>`<tr><th scope="row">${k}</th><td>${money(v)}</td></tr>`).join('')}</tbody></table><p>Prorrata del mes: ${money(result.prorata)}${o.prorata!==null?' · manual':''}. La extra cobrada no se añade otra vez a la base.</p>${result.parts.map(part=>`<h3>${esc(part.kind)} · ${monthLabel(part.month)}</h3><p>Base CC ${part.kind.startsWith('Incremento')?'adicional ':''}: ${money(part.ccBase)}<br>Base desempleo/FP ${part.kind.startsWith('Incremento')?'adicional ':''}: ${money(part.atBase)}<br>Cuota: ${money(part.total)} · MEI ${number(part.parameters.meiRate)} %<br>Límite mensual: ${money(part.parameters.maximum)} · mínimo CC ${money(part.parameters.minimumCC)} · mínimo CP ${money(part.parameters.minimumAT)}.</p>`).join('')}<h3>Guardias por fecha</h3>${result.rows.length?`<ul>${result.rows.map(r=>`<li>${esc(r.date)} · R${r.grade} · ${esc(MODES[r.mode])}: ${number(r.hours)} h × ${number(r.rate)} € = ${money(r.gross)}. ${esc(r.status)}${r.from?` desde ${esc(r.from)}`:''}.</li>`).join('')}</ul>`:'<p>Sin horas de guardia en este escenario.</p>'}`;
   }
@@ -150,4 +161,6 @@ function refresh(persist=true){
   $('warnings').innerHTML=warnings.map(w=>`<li>${esc(w)}</li>`).join('');
   $('notice-count').textContent=warnings.length?`${warnings.length} aspectos a revisar`:'Alcance de la estimación';
 }
+// En una columna, la barra inferior con el líquido sobra mientras el recibo está a la vista.
+if('IntersectionObserver'in globalThis)new IntersectionObserver(([entry])=>{$('net-bar-link').hidden=entry.isIntersecting;},{threshold:.35}).observe($('recibo'));
 fill();refresh(false);

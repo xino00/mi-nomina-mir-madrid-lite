@@ -37,6 +37,7 @@ Abre `http://127.0.0.1:4187`. `build` prepara `dist/` a partir de una lista expl
 - `src/tax.js`: algoritmo fiscal admitido.
 - `src/state.js`: persistencia y validación estructural.
 - `src/app.js`, `index.html`, `styles.css`: interfaz.
+- `fonts/`: IBM Plex Sans y Mono (subconjunto latino, licencia OFL en `fonts/OFL.txt`), servidas desde el propio sitio; no se cargan fuentes remotas.
 
 La aplicación anterior `xino00/mi-nomina-mir-madrid` permanece independiente. Esta versión revisa las ideas de selección temporal de tarifas, precedencia manual y cotización incremental de su motor; no importa sus datos ni sus integraciones.
 
