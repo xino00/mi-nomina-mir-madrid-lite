@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Estimación mensual de nómina MIR R1–R5 del SERMAS. Horas de guardia, retribuciones, retención y cotizaciones. Datos guardados solo en tu navegador.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#002FA7">
+  <title>Mi nómina MIR Madrid · Lite</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./src/app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#monthly">Ir al cálculo mensual</a>
+  <header class="masthead"><a href="./" class="brand">Mi nómina <span>MIR Madrid</span></a><span class="edition">Lite / 2026–2027</span></header>
+  <main id="app">
+    <div class="intro"><div><p class="eyebrow">MIR R1–R5 · SERMAS</p><h1>Tu mes,<br>cuenta a cuenta.</h1></div><p>Introduce tus horas y entiende tu nómina.<br>Estimación para jornada completa y situación ordinaria.</p></div>
+    <p id="storage-status" class="storage" role="status">Tus datos se guardan solo en este navegador.</p>
+    <details id="profile-panel" class="panel profile" open>
+      <summary><span>01 <strong>Tu configuración</strong></span><span id="profile-summary">Empieza aquí</span></summary>
+      <div class="panel-content">
+        <p>Indica el curso y la fecha en que empezó. Se propondrán los demás cambios anuales; revisa las fechas reales.</p>
+        <div class="field-grid three">
+          <label>Curso de referencia<select id="anchor-grade"><option value="1">R1</option><option value="2">R2</option><option value="3">R3</option><option value="4">R4</option><option value="5">R5</option></select></label>
+          <label>Fecha de inicio de ese curso<input id="anchor-date" type="date" value="2026-01-01" required></label>
+          <button id="suggest-dates" type="button" class="secondary align-end">Proponer fechas de curso</button>
+        </div>
+        <div id="grade-dates" class="field-grid grades"></div>
+        <label>Fin de residencia (opcional)<input id="end-date" type="date"></label><p class="hint">Indícalo para no proyectar sueldo MIR después de terminar. Puedes dejar los últimos cursos vacíos si tu especialidad termina antes. La calculadora no liquida finiquitos ni sus extras pendientes: incorpóralos en la previsión manual anual.</p>
+        <hr>
+        <div class="field-grid">
+          <label>Situación familiar para IRPF<select id="situation"><option value="3">Situación 3 · sin hijos; soltero/a o cónyuge con rentas &gt; 1.500 €</option><option value="2">Situación 2 · casado/a, cónyuge con rentas ≤ 1.500 €</option></select></label>
+          <label>Desempleo aplicado<select id="unemployment"><option value="1.6">1,60 % · temporal general, supuesto provisional</option><option value="1.55">1,55 % · ajuste manual según tu nómina</option></select></label>
+        </div>
+        <label class="checkbox"><input id="supported" type="checkbox" checked><span>Mi situación está cubierta: menor de 65 años, sin hijos ni ascendientes a cargo, discapacidad, movilidad geográfica, pensiones compensatorias, anualidades, deducción de vivienda anterior a 2013 ni rendimientos irregulares; residente fiscal en territorio común, fuera de Ceuta, Melilla y La Palma.</span></label>
+        <p class="hint">Si alguna circunstancia no encaja, desmarca la casilla e introduce un IRPF manual en ajustes. El automático aplica un mínimo del 15 % por relación laboral especial. Es retención, no declaración de la renta.</p>
+        <details class="subdetails" open><summary>Previsión fiscal anual</summary><p>Patrón de horas anuales trabajadas, repartido entre meses de actividad. Se estima qué se cobra en el año seleccionado, incluido el retraso de las guardias. No se crea un historial.</p><div id="forecast-fields" class="field-grid three"></div>
+          <div id="forecast-overrides" class="field-grid"></div>
+          <p class="hint">La previsión usa las fechas de curso y tarifas vigentes. Los ajustes mensuales y vacaciones debes incorporarlos aquí. En 2026 añade los cobros de guardias de 2025 a «Otros ingresos anuales» o indica los totales anuales manuales.</p>
+          <label class="checkbox"><input id="accumulated-enabled" type="checkbox"><span>Afinar con bruto y retenciones ya acumulados antes de esta nómina</span></label>
+          <div id="accumulated-fields" class="field-grid three"><label>Año de los acumulados<select id="accumulated-year"><option>2026</option><option>2027</option></select></label><label>Bruto ya cobrado (€)<input id="accumulated-gross" type="number" min="0" max="1000000" step="0.01" value="0"></label><label>IRPF ya retenido (€)<input id="accumulated-withheld" type="number" min="0" max="1000000" step="0.01" value="0"></label></div>
+          <p class="hint">Los acumulados estiman el porcentaje sobre el bruto restante; no reproducen todos los límites de una regularización legal.</p>
+        </details>
+        <div class="actions"><button id="save-profile" type="button">Guardar configuración</button><button id="erase" type="button" class="text-button">Borrar mis datos</button></div>
+      </div>
+    </details>
+    <div class="workspace">
+      <section id="monthly" class="panel monthly" aria-labelledby="month-title">
+        <div class="section-heading"><span>02</span><h2 id="month-title">Tu nómina del mes</h2></div>
+        <div class="panel-content">
+          <div class="field-grid"><label>Mes de cobro<input id="month" type="month" min="2026-01" max="2027-12" required></label><label>Pago de guardias<select id="delay"><option value="1">A mes vencido</option><option value="0">En el mismo mes</option><option value="2">Dos meses después</option></select></label></div>
+          <div class="worked-strip"><span>Guardias trabajadas en</span><strong id="worked-month"></strong></div>
+          <div class="field-grid hours-grid"><label>Horas laborables<input id="hours-labour" type="number" min="0" max="744" step="0.01" inputmode="decimal"><span id="rate-labour" class="hint"></span></label><label>Horas sábados, domingos y festivos<input id="hours-holiday" type="number" min="0" max="744" step="0.01" inputmode="decimal"><span id="rate-holiday" class="hint"></span></label></div>
+          <p class="hint">Solo presencia física. Admite decimales. Si cambia tu curso durante el mes, usa tramos con fecha y deja estas dos casillas a cero.</p>
+          <details id="modalities" class="subdetails"><summary>Localizadas, especiales y tramos con fecha</summary><p>Los tramos se suman a las horas anteriores. Para especiales introduce la tarifa final en €/h, también si son localizadas.</p><div id="rows"></div><button id="add-row" type="button" class="secondary">Añadir tramo</button></details>
+          <details id="advanced" class="subdetails"><summary>Ajustes de esta nómina</summary><p>Vacío significa automático. Un cero escrito es un ajuste manual válido. Estos cambios afectan solo al escenario mensual visible.</p><div id="overrides" class="field-grid"></div>
+            <div class="field-grid"><label>Otros devengos sujetos a IRPF y cotización (€)<input id="other-gross" type="number" min="0" max="1000000" step="0.01"></label><label>Otros descuentos después de IRPF (€)<input id="other-deductions" type="number" min="0" max="1000000" step="0.01"></label></div>
+            <p class="hint">Los devengos se imputan al mes actual. Exenciones y atrasos complejos requieren calcular y ajustar las cuotas manualmente.</p>
+            <label class="checkbox"><input id="vacation-enabled" type="checkbox"><span>Añadir compensación vacacional</span></label>
+            <div class="field-grid"><label>Media mensual de guardias de los seis meses anteriores (€)<input id="vacation-average" type="number" min="0" max="1000000" step="0.01"></label><label>Fracción del mes de vacaciones (0–1)<input id="vacation-fraction" type="number" min="0" max="1" step="0.01"></label></div><p class="hint">Un mes completo = 1. La fracción parcial la decides tú: no se aplica ningún divisor de días oculto. Se añade a las guardias, sin sustituirlas.</p>
+            <button id="reset-month" type="button" class="secondary">Restablecer ajustes automáticos</button>
+          </details>
+        </div>
+      </section>
+      <aside class="result-column" aria-label="Resultado de nómina">
+        <section class="result" aria-labelledby="net-title"><div class="result-top"><h2 id="net-title">Neto estimado</h2><span id="result-grade"></span></div><div id="net" class="net" aria-live="polite" aria-atomic="true">—</div><p id="result-month"></p><p class="result-note">Estimación con supuestos. Revisa su origen debajo.</p></section>
+        <div id="errors" role="alert"></div>
+        <section class="panel breakdown"><div class="section-heading"><span>03</span><h2>El desglose</h2></div><dl id="breakdown"></dl></section>
+        <details class="panel explanations"><summary>Cómo se ha calculado</summary><div id="calculation-detail" class="panel-content"></div></details>
+      </aside>
+    </div>
+    <details class="panel notices" id="notices-panel"><summary><strong>Supuestos y límites</strong><span id="notice-count"></span></summary><div class="panel-content"><ul id="warnings"></ul><p>Solo meses ordinarios de 2026–2027, jornada completa. Bajas, jornada parcial, finiquitos y atrasos complejos no tienen liquidación automática. No se certifica el cumplimiento de jornada.</p></div></details>
+    <details class="panel sources"><summary><strong>Fuentes y reglas</strong><span>Revisión: 11 nov 2026</span></summary><div class="panel-content"><p><span class="tag">Publicada</span> Cifra o regla contrastada en el original. <span class="tag provisional">Provisional</span> Referencia anterior, derivación o supuesto pendiente. <span class="tag manual">Manual</span> Dato introducido por ti.</p><div id="sources"></div><p><a href="./docs/VERIFICACION.md">Ver comprobaciones y límites de validación</a> · <a href="./docs/FUENTES.md">Consultar criterios de cálculo</a></p></div></details>
+  </main>
+  <footer><p>Mi nómina MIR Madrid · Lite</p><p>Sin cuenta ni envío de datos del formulario. <a href="https://github.com/xino00/mi-nomina-mir-madrid-lite" rel="noreferrer">Código y versiones</a></p><p>GitHub Pages recibe las peticiones habituales de visita. No se usan analítica, fuentes remotas ni cookies propias.</p></footer>
+  <noscript><p>Activa JavaScript para calcular. Los cálculos se realizan en tu navegador.</p></noscript>
+</body>
+</html>
